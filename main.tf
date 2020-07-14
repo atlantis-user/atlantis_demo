@@ -1,250 +1,98 @@
-/**************************************************************************************************************************************
-*   1.  VCN 
-*       Compartment - root compartment
-*       Name: DemoVCN
-*       CIDR - 10.1.0.0/16, 
-*       Public Subnet - 10.1.0.0/24 with security list opened with ports 22,80 
-*       Internet GW + Proper Route 
-*
-*   2.  Compute
-*       1 x Small Compute  + Setup Apache Web with return host name as string
-*
-*   *.  Output - Public IP of the web server
-*      
-*
-*****************************************************************************************************************************************/
-
-variable "tenancy_ocid" {
-}
-
-variable "user_ocid" {
-}
-
-variable "fingerprint" {
-}
-
-variable "private_key_path" {
-}
-
-variable "public_key_path" {
-}
-
-variable "region" {
-}
-
 provider "oci" {
-  tenancy_ocid     = var.tenancy_ocid
-  user_ocid        = var.user_ocid
-  fingerprint      = var.fingerprint
-  private_key_path = var.private_key_path
-  region           = var.region
+  auth = "InstancePrincipal"
+  region = "${var.region}"
 }
 
-# Variables for VCN 
-variable "vcn_cidr" {
-  default = "10.1.0.0/16"
+
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+
+
+variable "region" {}
+
+variable "compartment_ocid" {}
+variable "ssh_public_key" {}
+
+variable "shape_name" {
+  default = "VM.Standard2.1"
 }
-
-variable "vcn_name" {
-  default = "demoVCN"
+variable "subnet_ocid" {
+ 
 }
+variable "instance_image_ocid" {
+  type = "map"
 
-variable "vcn_dns" {
-  default = "demovcn"
-}
+  default = {
+    // See https://docs.us-phoenix-1.oraclecloud.com/images/
+    // Oracle-provided image "Oracle-Linux-7.5-2018.10.16-0"
+    us-phoenix-1 = "ocid1.image.oc1.phx.aaaaaaaaoqj42sokaoh42l76wsyhn3k2beuntrh5maj3gmgmzeyr55zzrwwa"
 
-variable "vcn_ig_name" {
-  default = "demoIG"
-}
-
-variable "vcn_route_name" {
-  default = "demoRouteTable"
-}
-
-# Variables for public subnet
-variable "pub_sec_name" {
-  default = "demoPubSecName"
-}
-
-variable "pub_subnet1" {
-  default = "10.1.0.0/24"
-}
-
-variable "pub_subnet1_name" {
-  default = "pub_subnet1"
-}
-
-variable "pub_subnet1_dns" {
-  default = "pubsub1"
-}
-
-# Variables for Compute
-variable "webHost1" {
-  default = "demoHostWeb01"
-}
-
-variable "InstanceShape" {
-  default = "VM.Standard1.2"
-}
-
-variable "publicIP" {
-  default = "true"
-}
-
-variable "os_name" {
-  default = "Oracle Linux"
-}
-
-variable "os_version" {
-  default = "7.8"
-}
-
-variable "user-data" {
-  default = <<EOF
-#!/bin/bash -x
-yum -y install httpd
-# Open port 80 on the firewall to allow http and https traffic through:
-firewall-offline-cmd --add-service=http
-systemctl enable firewalld
-systemctl restart firewalld
-# Start the web server:
-systemctl start httpd
-# Add an index.htm file on each instance to indicate which server it is.
-hostname >/var/www/html/index.html
-EOF
-
-}
-
-#---------------------------------------------
-# Create VCN
-#---------------------------------------------
-resource "oci_core_virtual_network" "vcn" {
-  cidr_block     = var.vcn_cidr
-  compartment_id = var.tenancy_ocid
-  display_name   = var.vcn_name
-  dns_label      = var.vcn_dns
-}
-
-# Internet GW
-resource "oci_core_internet_gateway" "ig" {
-  compartment_id = oci_core_virtual_network.vcn.compartment_id
-  display_name   = var.vcn_ig_name
-  vcn_id         = oci_core_virtual_network.vcn.id
-}
-
-# Route
-resource "oci_core_route_table" "vcnRoute" {
-  compartment_id = oci_core_virtual_network.vcn.compartment_id
-  vcn_id         = oci_core_virtual_network.vcn.id
-  display_name   = var.vcn_route_name
-  route_rules {
-    destination       = "0.0.0.0/0"
-    network_entity_id = oci_core_internet_gateway.ig.id
+    us-ashburn-1   = "ocid1.image.oc1.iad.aaaaaaaageeenzyuxgia726xur4ztaoxbxyjlxogdhreu3ngfj2gji3bayda"
+    eu-frankfurt-1 = "ocid1.image.oc1.eu-frankfurt-1.aaaaaaaaitzn6tdyjer7jl34h2ujz74jwy5nkbukbh55ekp6oyzwrtfa4zma"
+    uk-london-1    = "ocid1.image.oc1.uk-london-1.aaaaaaaa32voyikkkzfxyo4xbdmadc2dmvorfxxgdhpnk6dw64fa3l4jh7wa"
   }
 }
+variable "ad" {}
 
-# Security List
-resource "oci_core_security_list" "vcnSec" {
-  compartment_id = oci_core_virtual_network.vcn.compartment_id
-  display_name   = var.pub_sec_name
-  vcn_id         = oci_core_virtual_network.vcn.id
-  egress_security_rules {
-    destination = "0.0.0.0/0"
-    protocol    = "6"
-  }
-  ingress_security_rules {
-    tcp_options {
-      max = 80
-      min = 80
-    }
-    protocol = "6"
-    source   = "0.0.0.0/0"
-  }
-  ingress_security_rules {
-    tcp_options {
-      max = 22
-      min = 22
-    }
-    protocol = "6"
-    source   = "0.0.0.0/0"
-  }
-  ingress_security_rules {
-    protocol = "6"
-    source   = var.vcn_cidr
-  }
+
+tenancy_ocid="ocid1.tenancy.oc1..aaaaaaaajehugl3ryss2gaxf3os7g5w4xdztfhy4coqnoizm2wpmrclnv5da"
+region="us-ashburn-1"
+compartment_ocid="ocid1.compartment.oc1..aaaaaaaa3pkequhrpjjdqd4i7ldhs6piblz2hiadbk5i3juy3xautlmzypxa"
+ssh_public_key="ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAwsLOjrH+ukEk72AW5hUvyAMf+J6ES8vC3uFglIFK6SkcvsAFHkoYrHJoJmxRGe3Fwo9WmnwgxqMbhA0gEnBFP6IhxwNgWxSkB0M1uTCLNJ4WXlYKoXwh50GelBsRcryzuzDchCXm7kA4U0/KzD4KPMb+KveDmArRugLEK4gS8TDJBGCCSTOrYOhvQb/s7qkrDOT+rQDhYs+C/kmBPbs/XwJsOUiQi4crUamYqPyq71oWGBnXBUEi6qWnywwchOAT1VRRpT+I/hlx8HZt03EZy/Fvl+86sMISoDXN9mgL3D5xZJNCFw8iKzmPUr+HMsoNW8Hlf5B6+hmNH0GPotqHrw== rsa-key-20191127"
+ad="2"
+subnet_ocid="ocid1.subnet.oc1.iad.aaaaaaaayjvjkvacz3e6kyk4cuqtdfw42bjhkmac7jlz4xrhau4h7tq2roaa"
+shape_name="VM.Standard2.1"
+
+
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+
+data "oci_identity_availability_domain" "ad" {
+  compartment_id = "${var.tenancy_ocid}"
+  ad_number      = "${var.ad}"
 }
 
-# Load all Availablity Domains to local data variable from the VCN compartment
-data "oci_identity_availability_domains" "ADs" {
-  compartment_id = oci_core_virtual_network.vcn.compartment_id
-}
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
-# Subnet
-resource "oci_core_subnet" "pubSubnetAD1" {
-  availability_domain = data.oci_identity_availability_domains.ADs.availability_domains[0]["name"]
-  cidr_block          = var.pub_subnet1
-  display_name        = var.pub_subnet1_name
-  compartment_id      = oci_core_virtual_network.vcn.compartment_id
-  vcn_id              = oci_core_virtual_network.vcn.id
-  route_table_id      = oci_core_route_table.vcnRoute.id
-  security_list_ids   = [oci_core_security_list.vcnSec.id]
-  dhcp_options_id     = oci_core_virtual_network.vcn.default_dhcp_options_id
-  dns_label           = var.pub_subnet1_dns
-}
-
-#---------------------------------------------
-# Check Images
-#---------------------------------------------
-data "oci_core_images" "OLImageOCID" {
-  compartment_id           = var.tenancy_ocid
-  operating_system         = var.os_name
-  operating_system_version = var.os_version
-  filter {
-    name   = "display_name"
-    values = ["^.*${var.os_version}-[^G].*$"] # FIXME: ["^((?!GPU).)*$"]
-    regex  = true
+resource "oci_core_instance" "TFInstance" {
+  availability_domain = "${data.oci_identity_availability_domain.ad.name}"
+  compartment_id      = "${var.compartment_ocid}"
+  display_name        = "mytfinstance"
+  shape               = "${var.shape_name}"
+  create_vnic_details {
+    subnet_id        = "${var.subnet_ocid}"
+    display_name     = "primaryvnic"
+    assign_public_ip = true
+   // hostname_label   = "${var.hostname_label}"
   }
-}
+ 
 
-#---------------------------------------------
-# Create web compute instance
-#---------------------------------------------
-resource "oci_core_instance" "webhost01" {
-  availability_domain = oci_core_subnet.pubSubnetAD1.availability_domain
-  compartment_id      = oci_core_subnet.pubSubnetAD1.compartment_id
-  display_name        = var.webHost1
   source_details {
     source_type = "image"
-    source_id   = data.oci_core_images.OLImageOCID.images[0]["id"]
+    source_id   = "${var.instance_image_ocid[var.region]}"
+
+    # Apply this to set the size of the boot volume that's created for this instance.
+    # Otherwise, the default boot volume size of the image is used.
+    # This should only be specified when source_type is set to "image".
+    boot_volume_size_in_gbs = "60"
   }
-  shape = var.InstanceShape
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.pubSubnetAD1.id
-    assign_public_ip = var.publicIP
+
+  # Apply the following flag only if you wish to preserve the attached boot volume upon destroying this instance
+  # Setting this and destroying the instance will result in a boot volume that should be managed outside of this config.
+  # When changing this value, make sure to run 'terraform apply' so that it takes effect before the resource is destroyed.
+  #preserve_boot_volume = true
+
+  metadata {
+    ssh_authorized_keys = "${file(var.ssh_public_key)}"
   }
-  metadata = {
-    ssh_authorized_keys = file(var.public_key_path)
-    user_data           = base64encode(var.user-data)
-  }
-  timeouts {
-    create = "60m"
-  }
+}
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+
+# Output the private and public IPs of the instance
+output "InstancePrivateIPs" {
+  value = ["${oci_core_instance.TFInstance.*.private_ip}"]
 }
 
-# Gets a list of vNIC attachments on the instances
-data "oci_core_vnic_attachments" "webhost01VnicsAttach" {
-  compartment_id      = oci_core_instance.webhost01.compartment_id
-  availability_domain = oci_core_instance.webhost01.availability_domain
-  instance_id         = oci_core_instance.webhost01.id
+output "InstancePublicIPs" {
+  value = ["${oci_core_instance.TFInstance.*.public_ip}"]
 }
 
-# Gets the OCID of the first (default) vNIC
-data "oci_core_vnic" "webhost01Vnics" {
-  vnic_id = data.oci_core_vnic_attachments.webhost01VnicsAttach.vnic_attachments[0]["vnic_id"]
-}
-
-# Output
-output "webhost01_public_ip" {
-  value = data.oci_core_vnic.webhost01Vnics.public_ip_address
-}
 
